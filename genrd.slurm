@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job genrd
-#SBATCH --partition=any_gpu
+#SBATCH --partition=any_cpu
 #SBATCH --nodes=1
 ##SBATCH --gres=gpu:1
 

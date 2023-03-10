@@ -10,7 +10,7 @@ import gzip
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--smi", type=str, required=True,help="smile file")
-parser.add_argument("--maxconfs",type=int, default=200,help="max number of conformers to generate")
+parser.add_argument("--maxconfs",type=int, default=250,help="max number of conformers to generate")
 parser.add_argument("--seed",type=int,default=6262009,help="random seed")
 args = parser.parse_args()
 
