@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 '''Given a smile, generate unminimized RDKIT conformers using default distance geometry and ETKDG.
-Files will be suffixed with _rdkit_200_dg_unmin.sdf.gz and _rdkit_200_etkdg_unmin.sdf.gz
+Files will be suffixed with _rdkit_250_dg_unmin.sdf.gz and _rdkit_250_etkdg_unmin.sdf.gz
 '''
 
 import numpy as np
 import os, argparse,glob, sys
 from rdkit.Chem import AllChem as Chem
-import gzip
+import gzip, subprocess
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--smi", type=str, required=True,help="smile file")
@@ -16,10 +16,16 @@ args = parser.parse_args()
 
 base,_ = os.path.splitext(args.smi)
 
-outdg=gzip.open(f'{base}_rdkit_{args.maxconfs}_dg_unmin.sdf.gz','wt+')
+dgname = f'{base}_rdkit_{args.maxconfs}_dg_unmin.sdf.gz'
+outdg=gzip.open(dgname,'wt')
 sdwriterdg = Chem.SDWriter(outdg)
-outetkdg = gzip.open(f'{base}_rdkit_{args.maxconfs}_etkdg_unmin.sdf.gz','wt+')
+
+ename = f'{base}_rdkit_{args.maxconfs}_etkdg_unmin.sdf.gz'
+outetkdg = gzip.open(ename,'wt')
 sdwriteretkdg = Chem.SDWriter(outetkdg)
+
+dgcnt = 0
+ecnt = 0
 
 for line in open(args.smi,'rt'):
     toks = line.split()
@@ -43,15 +49,32 @@ for line in open(args.smi,'rt'):
     mol2 = Chem.RemoveHs(mol2)
     for cid in range(mol2.GetNumConformers()):
         sdwriterdg.write(mol2, confId=cid)    
+        dgcnt += 1
     
     #etkdg
     params = Chem.ETKDGv3()
     params.randomSeed = args.seed
     Chem.EmbedMultipleConfs(mol, args.maxconfs, params)
     mol = Chem.RemoveHs(mol)
-    for cid in range(mol2.GetNumConformers()):
-        sdwriteretkdg.write(mol2, confId=cid)    
+    for cid in range(mol.GetNumConformers()):
+        sdwriteretkdg.write(mol, confId=cid)    
+        ecnt += 1
 
 
 sdwriterdg.close()
 sdwriteretkdg.close()
+outdg.close()
+outetkdg.close()
+
+if dgcnt == 0:
+    os.remove(dgname)
+if ecnt == 0:
+    os.remove(ename)
+    
+#compute rmsds 
+refsdf = base.replace('_nosc','')+'.sdf'
+outdg = dgname.replace('.sdf.gz','.rmsds.txt')
+text = subprocess.check_output(f'obrms -f -m {refsdf} {dgname} > {outdg}',shell=True)
+
+oute = ename.replace('.sdf.gz','.rmsds.txt')
+text = subprocess.check_output(f'obrms -f -m {refsdf} {ename} > {oute}',shell=True)
