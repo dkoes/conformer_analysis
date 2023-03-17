@@ -3,7 +3,7 @@
 import os, glob
 os.environ['PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION'] = 'python'
 import copy
-import os,sys
+import os,sys,gzip
 import argparse
 from rdkit.Chem import AllChem as Chem
 import torch
@@ -15,7 +15,7 @@ import random
 from confgen.model.gnn import GNN
 from confgen.molecule.graph import rdk2graph
 from confgen.utils.utils import  set_rdmol_positions
-import io
+import io, subprocess
 
 
 parser = argparse.ArgumentParser()
@@ -144,7 +144,11 @@ for k in del_keys:
 model.load_state_dict(checkpoint)
 model.eval()
 
-writer = Chem.SDWriter(open(args.out,'wt'))
+if args.out.endswith('.gz'):
+    out = gzip.open(args.out,'wt')
+else:
+    out = open(args.out,'wt')
+writer = Chem.SDWriter(out)
 confs = args.maxconfs
 
 with open(args.smi,'rt') as f:
@@ -180,4 +184,11 @@ with open(args.smi,'rt') as f:
             print("Error",e,"with",smi,flush=True)
 
 writer.close()
- 
+out.close() 
+
+if args.out.endswith('.sdf.gz'):
+    base = args.smi.replace('.smi','')
+    refsdf = base.replace('_nosc','')+'.sdf'
+    out = args.out.replace('.sdf.gz','.rmsds.txt')
+    text = subprocess.check_output(f'obrms -f -m {refsdf} {args.out} > {out}',shell=True)
+
