@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 '''Given a smile, generate minimized RDKIT conformers using ETKDGv3.
- Possibly rank by energy and filter by rmsd.
+ Rank by energy and then filter by different rmsd thresholds.
 '''
 
 import numpy as np
@@ -12,19 +12,23 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--smi", type=str, required=True,help="smile file")
 parser.add_argument("--maxconfs",type=int, default=250,help="max number of conformers to generate")
 parser.add_argument("--seed",type=int,default=6262009,help="random seed")
-parser.add_argument('--j',type=int,default=8,help='number of threads')
-parser.add_argument('--filter',type=float,default=0,help='RMSD to filter by; if zero no sorting or ranking')
+parser.add_argument('--j',type=int,default=16,help='number of threads')
 args = parser.parse_args()
 
 base,_ = os.path.splitext(args.smi)
 
-if args.filter == 0:
-    ename = f'{base}_rdkit_{args.maxconfs}_unranked.sdf.gz'
-else:
-    ename = f'{base}_rdkit_{args.maxconfs}_filtered_{args.filter}.sdf.gz'
-    
-outetkdg = gzip.open(ename,'wt')
-sdwriteretkdg = Chem.SDWriter(outetkdg)
+thresholds = [0, 0.5, 1.0, 1.5, 2.0]
+sdwriters = []
+outs = []
+for t in thresholds:  
+  if t == 0:
+      ename = f'{base}_rdkit_{args.maxconfs}_unranked.sdf.gz'
+  else:
+      ename = f'{base}_rdkit_{args.maxconfs}_filtered_{t}.sdf.gz'    
+  outetkdg = gzip.open(ename,'wt')
+  outs.append(outetkdg)
+  sdwriteretkdg = Chem.SDWriter(outetkdg)
+  sdwriters.append(sdwriteretkdg)
 
 def getRMS(mol, c1,c2):
     rms = Chem.GetBestRMS(mol,mol,c1,c2)
@@ -59,11 +63,10 @@ def create_confs(line):
     mol.SetProp("_Name",name);
     
     sortedcids = sorted(cids,key = lambda cid: cenergy[cid])
-    if len(sortedcids) > 0:
-        mine = cenergy[sortedcids[0]]
-    else:
-        mine = 0
-    if(args.filter > 0):
+    
+    ret = {}
+    for t in thresholds:
+      if t > 0:
         selected = set()
         energies = []
         newmol = Chem.Mol(mol)
@@ -73,15 +76,16 @@ def create_confs(line):
             passed = True
             for seenconf in selected:
                 rms = getRMS(mol,seenconf,conf) 
-                if rms < args.filter:
+                if rms < t:
                     break
             else:
                 selected.add(conf)
                 energies.append(cenergy[conf])
                 newmol.AddConformer(mol.GetConformer(conf),assignId=True)
-        return newmol,name,energies
-    else:
-        return mol,name,cenergy
+        ret[t] = (newmol,name,energies)
+      else:
+        ret[t] = (mol,name,cenergy)
+    return ret
     
     
 
@@ -89,15 +93,21 @@ def create_confs(line):
 
 pool = multiprocessing.Pool(args.j)
 
-for mol,name,energies in pool.imap_unordered(create_confs, open(args.smi,'rt')):
+for res in pool.imap_unordered(create_confs, open(args.smi,'rt')):
     #I have no idea what the name property doesn't stick through pickling..
-    mol.SetProp('_Name',name)
-    for cid in range(mol.GetNumConformers()):
-        mol.SetDoubleProp('energy',energies[cid])
-        sdwriteretkdg.write(mol, confId=cid)    
+    for t,writer in zip(thresholds,sdwriters):
+      mol,name,energies = res[t]
+      mol.SetProp('_Name',name)
+      for cid in range(mol.GetNumConformers()):
+          mol.SetDoubleProp('energy',energies[cid])
+          writer.write(mol, confId=cid)    
 
 
-sdwriteretkdg.close()
-outetkdg.close()
+for writer in sdwriters:
+  writer.close()
+  
+for out in outs:
+  out.close()
+
 
     

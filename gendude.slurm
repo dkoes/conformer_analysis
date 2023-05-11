@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --job gendude
-#SBATCH --partition=any_cpu
+#SBATCH --partition=dept_cpu
 #SBATCH --nodes=1
-#SBATCH -c 8
+#SBATCH -c 16 
 ##SBATCH --gres=gpu:1
 
 

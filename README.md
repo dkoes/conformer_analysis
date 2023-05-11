@@ -87,6 +87,25 @@ done
 ```
 RMSDs to the reference conformation and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.
 
+### Auto3D Minimization
+
+Auto3D ([https://github.com/isayevlab/Auto3D_pkg](https://github.com/isayevlab/Auto3D_pkg)) uses machine learned QM potentials to optimize molecules.
+The full workflow first generates conformers using default RDKit distance geometry and then optimizes, putting extra effort into enumerating stereoisomers.
+We apply the full workflow to the PDB refined set:
+```
+for i in refined-set/*/*ligand.smi; do cat $i; echo ""; done > refined.smi 
+sed -i 's/\_ligand//' refined.smi
+python3 ~/git/Auto3D_pkg/auto3D.py refined.smi --k 250 --max_confs 250 --threshold 0 --window 1000000
+```
+Note that the ligand names cannot have a period or underscore in them.  Copy and gzip the resulting output file into refined_auto3d.sdf.gz
+```bash
+./split_refined.py --sdf refined_auto3d.sdf.gz 
+for i in refined-set/*/*ligand_auto3d_250_min.sdf.gz
+do 
+ ./compute_rmsds.py --sdf $i
+done
+```
+
 ## Bioactive Conformation Analysis.
 
 See the notebook bioactive.ipynb.
@@ -108,10 +127,7 @@ done
 
 for i in DUDE/*/*.ism
 do 
- for r in 0 0.5 1.0 2.0;
- do 
-  echo ./gen_dude_conformers.py --smi $i --filter $r
- done
+  echo ./gen_dude_conformers.py --smi $i
 done
 ```
 
