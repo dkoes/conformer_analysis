@@ -14,6 +14,7 @@ os.makedirs(args.outdir,exist_ok=True)
 for mol in Chem.SDMolSupplier(args.sdf):
     name = mol.GetProp('_Name')
     #the following is needed for chiral centers to be included in smiles output
+    Chem.AssignStereochemistryFrom3D(mol)
     Chem.FindMolChiralCenters(mol,includeUnassigned=True)
     _,pdb,ch = name.split('_')
    #write sdf
