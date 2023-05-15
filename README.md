@@ -87,24 +87,7 @@ done
 ```
 RMSDs to the reference conformation and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.
 
-### Auto3D Minimization
 
-Auto3D ([https://github.com/isayevlab/Auto3D_pkg](https://github.com/isayevlab/Auto3D_pkg)) uses machine learned QM potentials to optimize molecules.
-The full workflow first generates conformers using default RDKit distance geometry and then optimizes, putting extra effort into enumerating stereoisomers.
-We apply the full workflow to the PDB refined set:
-```
-for i in refined-set/*/*ligand.smi; do cat $i; echo ""; done > refined.smi 
-sed -i 's/\_ligand//' refined.smi
-python3 ~/git/Auto3D_pkg/auto3D.py refined.smi --k 250 --max_confs 250 --threshold 0 --window 1000000
-```
-Note that the ligand names cannot have a period or underscore in them.  Copy and gzip the resulting output file into refined_auto3d.sdf.gz
-```bash
-./split_refined.py --sdf refined_auto3d.sdf.gz 
-for i in refined-set/*/*ligand_auto3d_250_min.sdf.gz
-do 
- ./compute_rmsds.py --sdf $i
-done
-```
 
 ## Bioactive Conformation Analysis.
 
@@ -114,8 +97,8 @@ We evaluate the effect the size of the conformational ensemble has on bioactive 
 ## Pharmacophore Matching
 
 ### DUDE Conformer Generation
-Minimized but unsorted: 1,5,10,25,50,75,100,250
-Minimized, sorted filters (0.5, 1.0, 2.0 RMSD) 1,5,10,25,50,75,100,250
+Minimized but unsorted: 1,5,10,25,50,75,100,200
+Minimized, sorted filters (0.5, 1.0, 2.0 RMSD) 1,5,10,25,50,75,100,200
 Energy window?
 
 ```bash
@@ -148,4 +131,20 @@ do
   ./genqueries.py $i/pharmit.json
 done
 ```
+
+### Pharmacophore Search
+
+Setup parameters for building databases.
+
+```bash
+cd DUDE
+for d in * ; do for i in 1 5 10 25 50 100 200; do echo "$d $i filtered_2.0"; echo "$d $i filtered_1.5"; echo "$d $i filtered_1.0"; echo "$d $i filtered_0.5"; echo "$d $i unranked"; done; done > params
+mv params ../
+cd ..
+```
+
+Build and search in parallel across a cluster.
+
+`sbatch -a 1-3605 get_pharma_res.slurm`
+
 
