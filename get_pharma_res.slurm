@@ -22,7 +22,7 @@ cd $SLURM_SUBMIT_DIR
 
 read -r dir i res <<< `sed -n ${SLURM_ARRAY_TASK_ID}p params`
 
-echo "$d - $i - $res"
+echo "$dir - $i - $res"
 
 cp -r DUDE/$dir $SCRDIR/$dir
 cd $SCRDIR/$dir
@@ -40,6 +40,8 @@ for f in *.json; do echo -n "$f $i "; $SLURM_SUBMIT_DIR/getf1.py $f db_${res}_${
 cp result_${res}_${i}.txt $SLURM_SUBMIT_DIR/DUDE/$dir
 
 sort -n -k4 result_${res}_${i}.txt  | tail -1
+
+cp db_${res}_${i}/dbinfo.json $SLURM_SUBMIT_DIR/DUDE/$dir/dbinfo_${res}_${i}.json
 
 rm -rf db_* *.sdf *.gz
 

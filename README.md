@@ -131,6 +131,7 @@ do
   ./genqueries.py $i/pharmit.json
 done
 ```
+**Note:** Using this procedure only two interaction features were identified for the cah2 target, so the remaining two non-interacting features were added to ensure there are at least 3 to choose from.
 
 ### Pharmacophore Search
 
@@ -143,8 +144,20 @@ mv params ../
 cd ..
 ```
 
+Count the number of conformers
+```bash
+for sdf in DUDE/*/*.sdf.gz
+do
+echo $sdf
+sdsorter -printCnt $sdf > ${sdf%.sdf.gz}.cnt
+sdsorter -reduceconfs 1 -printCnt $sdf >> ${sdf%.sdf.gz}.cnt
+done
+```
+
 Build and search in parallel across a cluster.
 
 `sbatch -a 1-3605 get_pharma_res.slurm`
 
+### Analysis
 
+See pharmacophore_analysis.ipynb

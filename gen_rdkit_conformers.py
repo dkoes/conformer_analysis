@@ -46,6 +46,9 @@ for line in open(args.smi,'rt'):
     #distance geometry
     mol2 = Chem.Mol(mol)
     Chem.EmbedMultipleConfs(mol2, args.maxconfs,randomSeed=args.seed)
+    if mol2.GetNumConformers() == 0:  #failed, try w/o sc
+        Chem.RemoveStereochemistry(mol2)
+        Chem.EmbedMultipleConfs(mol2, args.maxconfs,randomSeed=args.seed) # there is exactly one platinum molecule where this triggers    
     mol2 = Chem.RemoveHs(mol2)
     for cid in range(mol2.GetNumConformers()):
         sdwriterdg.write(mol2, confId=cid)    
@@ -55,6 +58,9 @@ for line in open(args.smi,'rt'):
     params = Chem.ETKDGv3()
     params.randomSeed = args.seed
     Chem.EmbedMultipleConfs(mol, args.maxconfs, params)
+    if mol.GetNumConformers() == 0:  #failed, try w/o sc
+        Chem.RemoveStereochemistry(mol)
+        Chem.EmbedMultipleConfs(mol, args.maxconfs,randomSeed=args.seed) # there is exactly one platinum molecule where this triggers        
     mol = Chem.RemoveHs(mol)
     for cid in range(mol.GetNumConformers()):
         sdwriteretkdg.write(mol, confId=cid)    

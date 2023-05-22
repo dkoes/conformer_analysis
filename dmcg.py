@@ -158,6 +158,9 @@ with open(args.smi,'rt') as f:
             mol = Chem.MolFromSmiles(smi)
             mol = Chem.AddHs(mol)
             Chem.EmbedMultipleConfs(mol)
+            if mol.GetNumConformers() == 0:  #failed, try w/o sc
+                Chem.RemoveStereochemistry(mol)
+                Chem.EmbedMultipleConfs(mol) # there is exactly one platinum molecule where this triggers
             mol = Chem.RemoveAllHs(mol)
             data = Data()
             graph = rdk2graph(mol)

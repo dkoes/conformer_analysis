@@ -7,12 +7,13 @@ import numpy as np
 import os, argparse,glob, sys
 from rdkit.Chem import AllChem as Chem
 import gzip, subprocess, multiprocessing
+import traceback
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--smi", type=str, required=True,help="smile file")
 parser.add_argument("--maxconfs",type=int, default=250,help="max number of conformers to generate")
 parser.add_argument("--seed",type=int,default=6262009,help="random seed")
-parser.add_argument('--j',type=int,default=16,help='number of threads')
+parser.add_argument('--j',type=int,default=32,help='number of threads')
 args = parser.parse_args()
 
 base,_ = os.path.splitext(args.smi)
@@ -34,7 +35,8 @@ def getRMS(mol, c1,c2):
     rms = Chem.GetBestRMS(mol,mol,c1,c2)
     return rms    
     
-def create_confs(line):    
+def create_confs(line):   
+ try:
     toks = line.split()
     smi = toks[0]
     name = ' '.join(toks[1:])    
@@ -86,27 +88,41 @@ def create_confs(line):
       else:
         ret[t] = (mol,name,cenergy)
     return ret
-    
+ except:
+     print("Error",line)
+     traceback.print_exc()
     
 
 
 
 pool = multiprocessing.Pool(args.j)
 
+nummols = {t:0 for t in thresholds}
+numconfs = {t:0 for t in thresholds}
+
 for res in pool.imap_unordered(create_confs, open(args.smi,'rt')):
-    #I have no idea what the name property doesn't stick through pickling..
+    #I have no idea why the name property doesn't stick through pickling..
+    if res == None:
+        continue # error
     for t,writer in zip(thresholds,sdwriters):
       mol,name,energies = res[t]
       mol.SetProp('_Name',name)
+      nummols[t] += 1
       for cid in range(mol.GetNumConformers()):
           mol.SetDoubleProp('energy',energies[cid])
           writer.write(mol, confId=cid)    
+          numconfs[t] += 1
 
 
 for writer in sdwriters:
   writer.close()
   
-for out in outs:
+for t,out in zip(thresholds,outs):
+  cntname = out.name.replace('.sdf.gz','.cnt')
+  cout = open(cntname,'wt')
+  cout.write(f'NumConfs: {numconfs[t]}\n')
+  cout.write(f'NumMols: {nummols[t]}\n')
+  cout.close()
   out.close()
 
 
