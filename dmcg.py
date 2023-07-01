@@ -16,7 +16,7 @@ from confgen.model.gnn import GNN
 from confgen.molecule.graph import rdk2graph
 from confgen.utils.utils import  set_rdmol_positions
 import io, subprocess
-
+from rdkit.Chem.rdmolops import RemoveHs
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--smi", type=str, required=True,help="Input SMILES")
@@ -161,7 +161,8 @@ with open(args.smi,'rt') as f:
             if mol.GetNumConformers() == 0:  #failed, try w/o sc
                 Chem.RemoveStereochemistry(mol)
                 Chem.EmbedMultipleConfs(mol) # there is exactly one platinum molecule where this triggers
-            mol = Chem.RemoveAllHs(mol)
+                
+            mol = RemoveHs(mol) #this is what DMCG used, keeps chiral hydrogens
             data = Data()
             graph = rdk2graph(mol)
             data.edge_index = torch.from_numpy(graph["edge_index"]).to(torch.int64)
@@ -192,6 +193,7 @@ out.close()
 if args.out.endswith('.sdf.gz'):
     base = args.smi.replace('.smi','')
     refsdf = base.replace('_nosc','')+'.sdf'
-    out = args.out.replace('.sdf.gz','.rmsds.txt')
-    text = subprocess.check_output(f'obrms -f -m {refsdf} {args.out} > {out}',shell=True)
+    if os.path.exists(refsdf):
+        out = args.out.replace('.sdf.gz','.rmsds.txt')
+        text = subprocess.check_output(f'obrms -f -m {refsdf} {args.out} > {out}',shell=True)
 
