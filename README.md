@@ -25,7 +25,7 @@ Note that 77 structures failed to be parsed with RDKit.  We ignore these (newer 
 
 **COD (Crystallography Open Database)**
 Original source is http://www.crystallography.net/cod/
-Processed files can be downloaded:
+Processed files (from https://chemrxiv.org/engage/chemrxiv/article-details/6356b98e2e0c63bd4d3a35f4) can be downloaded:
 ```
 wget http://bits.csb.pitt.edu/files/cod.tgz
 mkdir cod
@@ -60,7 +60,7 @@ do
  echo ./gen_rdkit_conformers.py --smi $f
 done
 ```
-If you are very patient you can remove the echo, or alternative divide up the commands using your favorite batch processing technique (we use the `genrd.slurm` script to distribute across our SLURM cluster).
+If you are very patient you can remove the echo, or alternatively divide up the commands using your favorite batch processing technique (we use the `genrd.slurm` script to distribute across our SLURM cluster).
 
 This results in files named `4EB8_rdkit_250_dg_unmin.sdf.gz` and `4EB8_rdkit_250_etkdg_unmin.sdf.gz`.  
 This script also uses the `obrms` utility from OpenBabel to calculate the RMSD of each generated conformer and puts the result in `.txt` file.
@@ -104,7 +104,7 @@ do
  echo ./minimize_sdf.py --sdf $f
 done 
 ```
-RMSDs to the reference conformation (if available) and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.
+RMSDs to the reference conformation (if available) and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.  Note that a few cod conformers take a huge amount of time to calculate RMSDs for because of their symmetries.
 
 
 
@@ -116,9 +116,11 @@ We evaluate the effect the size of the conformational ensemble has on bioactive 
 ## Pharmacophore Matching
 
 ### DUDE Conformer Generation
-Minimized but unsorted: 1,5,10,25,50,75,100,200
-Minimized, sorted filters (0.5, 1.0, 2.0 RMSD) 1,5,10,25,50,75,100,200
-Energy window?
+
+The `gen_dude_conformers.py` script will generate the following conformers:
+ * Minimized but unsorted: 1,5,10,25,50,75,100,200
+ * Minimized, sorted filters (0.5, 1.0, 2.0 RMSD) 1,5,10,25,50,75,100,200
+
 
 ```bash
 #label actives
@@ -140,7 +142,7 @@ This uses SMARTS expressions to identify features and distance and count based
 heuristics to enable them if they are interacting appropriately with the protein.
 Note we set each feature radius to 1.0 and remove any other constraints on the features.
 
-For all identified interacting features, when then enumerate every possible
+For all identified interacting features, we then enumerate every possible
 combination with at least three features.  Rather than worrying about identifying
 a single best pharmacophore, we will simply test them all and take the best result.
 
@@ -164,7 +166,7 @@ mv params ../
 cd ..
 ```
 
-Count the number of conformers
+Count the number of conformers (sdsorter is available here: https://sourceforge.net/projects/sdsorter/)
 ```bash
 for sdf in DUDE/*/*.sdf.gz
 do
