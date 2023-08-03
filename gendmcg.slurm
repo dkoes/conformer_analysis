@@ -1,9 +1,8 @@
 #!/bin/bash
 #SBATCH --job gendmcg
-#SBATCH --partition=dept_gpu
+#SBATCH --partition=any_gpu
 #SBATCH --nodes=1
 #SBATCH --gres=gpu:1
-#SBATCH -x g011
 
 hostname
 cd $SLURM_SUBMIT_DIR

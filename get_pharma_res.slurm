@@ -35,7 +35,7 @@ gunzip decoys_final_rdkit_250_${res}.sdf.gz
 echo "Building $i"
 rm -rf db_${res}_${i}/ ; pharmit dbcreate  -in decoys_final_rdkit_250_${res}.sdf -in actives_final_rdkit_250_${res}.sdf -reduceconfs=${i} -dbdir db_${res}_${i}
 echo "Searching $i"
-for f in *.json; do echo -n "$f $i "; $SLURM_SUBMIT_DIR/getf1.py $f db_${res}_${i}; done > result_${res}_${i}.txt
+for f in pharmit*.json; do echo -n "$f $i "; $SLURM_SUBMIT_DIR/getf1.py $f db_${res}_${i}; done > result_${res}_${i}.txt
 
 cp result_${res}_${i}.txt $SLURM_SUBMIT_DIR/DUDE/$dir
 
@@ -43,5 +43,5 @@ sort -n -k4 result_${res}_${i}.txt  | tail -1
 
 cp db_${res}_${i}/dbinfo.json $SLURM_SUBMIT_DIR/DUDE/$dir/dbinfo_${res}_${i}.json
 
-rm -rf db_* *.sdf *.gz
+rm -rf $SCRDIR/$dir
 

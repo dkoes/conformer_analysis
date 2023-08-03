@@ -16,11 +16,23 @@ Separate into indvidual files and generate smiles:
 
 **PDBbind 2020**
 You will need to register and download the refined tarball at [http://www.pdbbind.org.cn/download.php](http://www.pdbbind.org.cn/download.php)
+
 ```
 tar xvfz PDBbind_v2020_refined.tar.gz 
 ./make_refined_smiles.py 
 ```
-Note that 77 structures failed to be parsed with RDKit.  We ignore these.
+Note that 77 structures failed to be parsed with RDKit.  We ignore these (newer version of RDKit are less problematic).
+
+**COD (Crystallography Open Database)**
+Original source is http://www.crystallography.net/cod/
+Processed files can be downloaded:
+```
+wget http://bits.csb.pitt.edu/files/cod.tgz
+mkdir cod
+cd cod
+tar xvfz ../cod.tgz
+```
+
 
 **DUDE**
 Downloaded from https://dude.docking.org/
@@ -30,11 +42,20 @@ tar xvfz all.tar.gz
 mv all DUDE
 ```
 
+**Crossdocking benchmark**
+Downloaded from (original source  https://doi.org/10.1002/pro.3784)
+```bash
+wget https://bits.csb.pitt.edu/files/gnina1.0_paper/crossdocked_ds_data.tar.gz
+tar xvfz crossdocked_ds_data.tar.gz
+./make_wierbowski_smiles.py
+curl https://raw.githubusercontent.com/gnina/models/master/data/Gnina1.0/ds_cd_input_pairs.txt | sed 's/carlos_cd/wierbowski_cd/g' | sed 's/PDB_Structures\///g' > ds_cd_input_pairs.txt 
+```
+
 ## RDKit Conformer Generation
 
 First we randomly sample a max of 250 conformers for each smile.  The commandlines can be generated with:
 ```bash
-for f in platinum2017/*.smi refined-set/*/*.smi 
+for f in platinum2017/*.smi refined-set/*/*.smi  wierbowski_cd/*/*.smi cod/*/*.smi
 do 
  echo ./gen_rdkit_conformers.py --smi $f
 done
@@ -43,8 +64,6 @@ If you are very patient you can remove the echo, or alternative divide up the co
 
 This results in files named `4EB8_rdkit_250_dg_unmin.sdf.gz` and `4EB8_rdkit_250_etkdg_unmin.sdf.gz`.  
 This script also uses the `obrms` utility from OpenBabel to calculate the RMSD of each generated conformer and puts the result in `.txt` file.
-
-
 
 
 
@@ -66,7 +85,7 @@ dmcg.py --smi test.smi --out test.sdf.gz --maxconfs 25 --eval-from checkpoint_94
 
 Setup generation commands the same as with rdkit:
 ```bash
-for f in platinum2017/*.smi refined-set/*/*.smi 
+for f in platinum2017/*.smi refined-set/*/*.smi wierbowski_cd/*/*.smi cod/*/*.smi
 do 
  echo ./dmcg.py --smi $f  --out ${f%.smi}_dmcg_250_unmin.sdf.gz --maxconfs 250 --eval-from /tmp/checkpoint_94.pt
 done
@@ -80,12 +99,12 @@ We next energy minimize the generated conformers using the UFF forcefield.  The 
 is unordered.
 
 ```bash
-for f in platinum2017/*unmin*sdf.gz refined-set/*/*unmin*.sdf.gz 
+for f in platinum2017/*unmin*sdf.gz refined-set/*/*unmin*.sdf.gz wierbowski_cd/*/*unmin*.sdf.gz cod*/*/*unmin.sdf.gz
 do 
  echo ./minimize_sdf.py --sdf $f
 done 
 ```
-RMSDs to the reference conformation and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.
+RMSDs to the reference conformation (if available) and all cross RMSDS (the RMSD between every pose in the file with every other pose - this is used for filtering) are also calculated with obrms and put into `.txt` and `.npy` files.
 
 
 
@@ -119,6 +138,7 @@ done
 Use Pharmit to identify the interacting features on the crystal ligand.
 This uses SMARTS expressions to identify features and distance and count based
 heuristics to enable them if they are interacting appropriately with the protein.
+Note we set each feature radius to 1.0 and remove any other constraints on the features.
 
 For all identified interacting features, when then enumerate every possible
 combination with at least three features.  Rather than worrying about identifying
@@ -161,3 +181,45 @@ Build and search in parallel across a cluster.
 ### Analysis
 
 See pharmacophore_analysis.ipynb
+
+
+## Docking
+
+First generate input conformations.  We will limit ourselves to a maximum ensemble 
+size of 5 due to the cost of docking.  We generate these small ensembles:
+ * 1 unminimized
+ * 1 unbiased sampled minimized (same as above)
+ * 1 minimal energy
+ * 5 unbiased sampled energy minimized
+ * 5 sorted by energy and filtered by RMSDs: 0, 0.5, 1.0, 2.0
+
+for i in  refined-set/*/*unmin.sdf.gz wierbowski_cd/*/*unmin.sdf.gz 
+do 
+ echo ./setup_docking_confs.py $i; 
+done > makedock
+
+Remove water and other hetatoms from receptor structures of PDBbind.
+
+```bash
+for i in refined-set/*/*_protein.pdb
+ do
+ grep -v HETATM $i > ${i%_protein.pdb}_rec.pdb
+done
+```
+
+Create a file containing all the docking commands:
+```bash
+./setup_docking_cmds.py > alldock
+```
+
+We run this using `dodock.slurm`.
+
+To perform docking with smina, can modify the command lines as follows:
+```bash
+sed 's/gnina/smina/g' alldock | sed 's/_docked/_sdocked/g' > salldock
+```
+
+
+### Analysis
+
+See docking_analysis.ipynb
